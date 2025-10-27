@@ -7,11 +7,13 @@ import storage from '../services/storage';
 export default function FichaTecnica() {
   const [modalOpen, setModalOpen] = useState(false);
   const [saveMessage, setSaveMessage] = useState({ type: '', text: '' });
-  const [tipoSelecionado, setTipoSelecionado] = useState('produto');
   const [tipoFichaTecnica, setTipoFichaTecnica] = useState('produto');
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchCodigo, setSearchCodigo] = useState('');
+  const [searchItem, setSearchItem] = useState('');
   const [produtosDisponiveis, setProdutosDisponiveis] = useState([]);
   const [nomeProdutoPrincipal, setNomeProdutoPrincipal] = useState('NOME DO PRODUTO');
+  const [codigoProdutoPrincipal, setCodigoProdutoPrincipal] = useState('-');
 
   // Produtos da tabela (inicialmente vazia)
   const [produtos, setProdutos] = useState([]);
@@ -58,32 +60,21 @@ export default function FichaTecnica() {
 
   const [showDropdown, setShowDropdown] = useState(false);
 
-  // Filtrar produtos pela busca E pelo tipo selecionado
+  // Filtrar produtos pela busca
   const produtosFiltrados = produtosDisponiveis.filter(item => {
-    // Filtro por tipo selecionado
-    if (tipoSelecionado) {
-      const tipoLower = (item.tipo || '').toLowerCase();
-      const categoriaLower = (item.categoria || '').toLowerCase();
-      
-      if (tipoSelecionado === 'insumo') {
-        // Mostrar apenas insumos
-        if (tipoLower !== 'insumo') return false;
-      } else if (tipoSelecionado === 'fabricacao') {
-        // Mostrar apenas produtos de fabricação (tipo direto OU categoria)
-        if (tipoLower === 'fabricação') return true;
-        if (tipoLower !== 'produto' || !categoriaLower.includes('fabrica')) return false;
-      } else if (tipoSelecionado === 'beneficiamento') {
-        // Mostrar apenas produtos de beneficiamento (tipo direto OU categoria)
-        if (tipoLower === 'beneficiamento') return true;
-        if (tipoLower !== 'produto' || !categoriaLower.includes('beneficiamento')) return false;
-      } else if (tipoSelecionado === 'produto') {
-        // Mostrar apenas produtos (excluindo fabricação e beneficiamento)
-        if (tipoLower !== 'produto') return false;
-        if (categoriaLower.includes('fabrica') || categoriaLower.includes('beneficiamento')) return false;
-      }
+    // Filtro por busca de código
+    if (searchCodigo) {
+      const search = searchCodigo.toLowerCase();
+      if (!item.codigo.toLowerCase().includes(search)) return false;
     }
     
-    // Filtro por busca de texto
+    // Filtro por busca de item/descrição
+    if (searchItem) {
+      const search = searchItem.toLowerCase();
+      if (!item.descricao.toLowerCase().includes(search)) return false;
+    }
+    
+    // Filtro por busca geral (mantido para compatibilidade)
     if (searchTerm) {
       const search = searchTerm.toLowerCase();
       return (
@@ -95,7 +86,15 @@ export default function FichaTecnica() {
     return true;
   });
 
-  // Adicionar produto à tabela
+  // Selecionar produto principal (barra de pesquisa superior)
+  const handleSelectProdutoPrincipal = (item) => {
+    setNomeProdutoPrincipal(item.descricao);
+    setCodigoProdutoPrincipal(item.codigo);
+    setSearchTerm('');
+    setShowDropdown(false);
+  };
+
+  // Adicionar produto à tabela de composição
   const handleAddProduto = (item) => {
     // Verificar se o produto já existe na lista
     const produtoExiste = produtos.find(p => p.codigo === item.codigo);
@@ -148,13 +147,9 @@ export default function FichaTecnica() {
       cor: corTipo
     };
     
-    // Se for o primeiro produto, definir como nome principal
-    if (produtos.length === 0) {
-      setNomeProdutoPrincipal(item.descricao);
-    }
-    
     setProdutos([...produtos, novoProduto]);
-    setSearchTerm('');
+    setSearchCodigo('');
+    setSearchItem('');
     setShowDropdown(false);
   };
 
@@ -279,127 +274,9 @@ export default function FichaTecnica() {
         <div className="mb-4">
           <h1 className="text-2xl font-bold text-blue-400 mb-4">FICHA TÉCNICA DE DESEMPENHO DO PRODUTO</h1>
           
-          {/* Barra de Controles - Pesquisa + Filtro + Tipo de Ficha + Botão Salvar */}
-          <div className="grid grid-cols-[1fr_200px_240px_auto] gap-3 items-end">
-            {/* Barra de Pesquisa - PRIMEIRO */}
-            <div className="relative">
-              <label className="block text-xs font-medium text-gray-400 mb-2 uppercase tracking-wide">
-                Pesquisar Produto
-              </label>
-              <div className="relative">
-                <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  onFocus={() => setShowDropdown(true)}
-                  placeholder="Digite o código ou nome do produto..."
-                  className="w-full bg-gray-900 border border-gray-700 rounded-lg pl-10 pr-4 py-2.5 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 transition-all hover:border-gray-600"
-                />
-                {showDropdown && produtosFiltrados.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-gray-800 border border-gray-600 rounded-lg shadow-lg max-h-96 overflow-y-auto z-50">
-                    {produtosFiltrados.map((item) => {
-                    // Determinar tipo e cor
-                    let tipoLabel = 'PRODUTO';
-                    let tipoCor = 'text-blue-400';
-                    let tipoBg = 'bg-blue-500/20';
-                    
-                    const tipoLower = (item.tipo || '').toLowerCase();
-                    
-                    if (tipoLower === 'insumo') {
-                      tipoLabel = 'INSUMO';
-                      tipoCor = 'text-yellow-400';
-                      tipoBg = 'bg-yellow-500/20';
-                    } else if (tipoLower === 'produto') {
-                      tipoLabel = 'PRODUTO';
-                      tipoCor = 'text-blue-400';
-                      tipoBg = 'bg-blue-500/20';
-                    } else if (tipoLower === 'fabricação') {
-                      tipoLabel = 'FABRICAÇÃO';
-                      tipoCor = 'text-blue-400';
-                      tipoBg = 'bg-blue-500/20';
-                    } else if (tipoLower === 'beneficiamento') {
-                      tipoLabel = 'BENEFICIAMENTO';
-                      tipoCor = 'text-green-400';
-                      tipoBg = 'bg-green-500/20';
-                    }
-                    
-                    return (
-                      <div
-                        key={item.id}
-                        onClick={() => {
-                          handleAddProduto(item);
-                          setShowDropdown(false);
-                        }}
-                        className="p-3 hover:bg-gray-700 cursor-pointer border-b border-gray-700 last:border-b-0 transition-colors"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex-1">
-                            {/* Nome do Produto */}
-                            <div className="text-white font-bold text-sm mb-1">{item.descricao}</div>
-                            
-                            {/* Linha de informações */}
-                            <div className="flex items-center gap-2 flex-wrap">
-                              {/* Código */}
-                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-semibold bg-gray-700 text-gray-300">
-                                Cód: {item.codigo}
-                              </span>
-                              
-                              {/* Tipo */}
-                              <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${tipoBg} ${tipoCor}`}>
-                                {tipoLabel}
-                              </span>
-                              
-                              {/* Categoria */}
-                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-purple-500/20 text-purple-400">
-                                {item.categoria}
-                              </span>
-                            </div>
-                          </div>
-                          
-                          {/* Preço */}
-                          <div className="flex flex-col items-end">
-                            <div className="text-green-400 font-bold text-lg">
-                              R$ {item.custoUnitario && !isNaN(parseFloat(item.custoUnitario)) ? parseFloat(item.custoUnitario).toFixed(2) : '0.00'}
-                            </div>
-                            <div className="text-gray-500 text-xs">Valor unit.</div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Filtro de Tipo de Produto - SEGUNDO */}
-            <div className="relative">
-              <label className="block text-xs font-medium text-gray-400 mb-2 uppercase tracking-wide">
-                Filtrar por Tipo
-              </label>
-              <div className="relative">
-                <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-orange-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
-                </svg>
-                <select 
-                  value={tipoSelecionado}
-                  onChange={(e) => setTipoSelecionado(e.target.value)}
-                  className="w-full bg-gray-900 border border-gray-700 rounded-lg pl-9 pr-9 py-2.5 text-white text-sm focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500/50 transition-all cursor-pointer hover:border-gray-600 appearance-none"
-                >
-                  <option value="produto">Produto</option>
-                  <option value="fabricacao">Fabricação</option>
-                  <option value="beneficiamento">Beneficiamento</option>
-                </select>
-                <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
-            </div>
-
-            {/* Seletor de Tipo de Ficha Técnica - TERCEIRO */}
+          {/* Barra de Controles - Tipo de Ficha + Pesquisa + Botão Salvar */}
+          <div className="grid grid-cols-[240px_1fr_auto] gap-3 items-end">
+            {/* Seletor de Tipo de Ficha Técnica - PRIMEIRO */}
             <div className="relative">
               <label className="block text-xs font-medium text-gray-400 mb-2 uppercase tracking-wide">
                 Tipo de Ficha Técnica
@@ -423,7 +300,95 @@ export default function FichaTecnica() {
               </div>
             </div>
 
-            {/* Botão Salvar - QUARTO (na mesma linha) */}
+            {/* Barra de Pesquisa - SEGUNDO */}
+            <div className="relative">
+              <label className="block text-xs font-medium text-gray-400 mb-2 uppercase tracking-wide">
+                Pesquisar Produto
+              </label>
+              <div className="relative">
+                <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    if (e.target.value) {
+                      setShowDropdown(true);
+                    } else {
+                      setShowDropdown(false);
+                    }
+                  }}
+                  onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
+                  placeholder="Digite o código ou nome do produto..."
+                  className="w-full bg-gray-900 border border-gray-700 rounded-lg pl-10 pr-4 py-2.5 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 transition-all hover:border-gray-600"
+                />
+                {showDropdown && produtosFiltrados.length > 0 && searchTerm && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-gray-900 border border-blue-500/30 rounded-lg shadow-2xl max-h-96 overflow-y-auto z-50">
+                    {produtosFiltrados.map((item) => {
+                    // Determinar tipo e cor
+                    let tipoBadge = '';
+                    let tipoCor = '';
+                    
+                    const tipoLower = (item.tipo || '').toLowerCase();
+                    
+                    if (tipoLower === 'insumo') {
+                      tipoBadge = 'INSUMO';
+                      tipoCor = 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
+                    } else if (tipoLower === 'produto') {
+                      tipoBadge = 'PRODUTO';
+                      tipoCor = 'bg-blue-500/20 text-blue-400 border-blue-500/30';
+                    } else if (tipoLower === 'fabricação') {
+                      tipoBadge = 'FABRICAÇÃO';
+                      tipoCor = 'bg-blue-500/20 text-blue-400 border-blue-500/30';
+                    } else if (tipoLower === 'beneficiamento') {
+                      tipoBadge = 'BENEFICIAMENTO';
+                      tipoCor = 'bg-green-500/20 text-green-400 border-green-500/30';
+                    } else {
+                      tipoBadge = 'PRODUTO';
+                      tipoCor = 'bg-blue-500/20 text-blue-400 border-blue-500/30';
+                    }
+                    
+                    return (
+                      <div
+                        key={item.id}
+                        onClick={() => {
+                          handleSelectProdutoPrincipal(item);
+                        }}
+                        className="px-4 py-3 hover:bg-gray-800 cursor-pointer border-b border-gray-800 last:border-b-0 transition-all"
+                      >
+                        <div className="flex items-center justify-between gap-4">
+                          {/* Código */}
+                          <div className="flex-shrink-0">
+                            <div className="text-gray-400 text-xs font-medium mb-0.5">Cód</div>
+                            <div className="text-white font-bold text-sm font-mono">{item.codigo}</div>
+                          </div>
+                          
+                          {/* Nome e Tipo */}
+                          <div className="flex-1 min-w-0">
+                            <div className="text-white font-semibold text-sm mb-1 truncate">{item.descricao}</div>
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border ${tipoCor}`}>
+                              {tipoBadge}
+                            </span>
+                          </div>
+                          
+                          {/* Preço */}
+                          <div className="flex-shrink-0 text-right">
+                            <div className="text-green-400 font-bold text-base">
+                              R$ {item.custoUnitario && !isNaN(parseFloat(item.custoUnitario)) ? parseFloat(item.custoUnitario).toFixed(2) : '0.00'}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Botão Salvar - TERCEIRO (na mesma linha) */}
             <button
               onClick={handleSaveFicha}
               className="px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-lg transition-all flex items-center gap-2 shadow-lg hover:shadow-green-600/50 whitespace-nowrap"
@@ -446,16 +411,119 @@ export default function FichaTecnica() {
         {/* Layout Principal */}
         <div className="flex gap-2">
           {/* Coluna Esquerda - Tabela de Produtos */}
-          <div className="w-[380px] flex-shrink-0">
+          <div className="w-[550px] flex-shrink-0">
             {/* Header da Tabela */}
             <div className="bg-black border-2 border-cyan-500/50 rounded-t overflow-hidden shadow-lg shadow-cyan-500/20">
-              <div className="grid grid-cols-[60px_1fr_50px_60px_70px_50px] bg-gradient-to-b from-gray-900 to-black border-b border-cyan-500/50">
-                <div className="text-cyan-400 p-2 text-[11px] font-bold border-r border-cyan-500/30">000</div>
-                <div className="text-cyan-400 p-2 text-[11px] font-bold border-r border-cyan-500/30">NOME DO PRODUTO</div>
+              {/* Header com 3 linhas */}
+              <div className="bg-gradient-to-b from-gray-900 to-black">
+                {/* Primeira linha - Produto Selecionado */}
+                <div className="grid grid-cols-[180px_1fr] border-b border-cyan-500/50 bg-gray-800/50">
+                  <div className="px-3 py-2 border-r border-cyan-500/30 flex items-center gap-2">
+                    <span className="text-gray-400 text-[10px] font-medium">Código do Produto</span>
+                    <span className="text-white font-bold text-xs font-mono">{codigoProdutoPrincipal}</span>
+                  </div>
+                  <div className="px-3 py-2 flex items-center gap-2">
+                    <span className="text-gray-400 text-[10px] font-medium">Descrição do Produto</span>
+                    <span className="text-white font-bold text-xs truncate">{nomeProdutoPrincipal}</span>
+                  </div>
+                </div>
+                
+                {/* Segunda linha - Cabeçalhos e Campos de busca */}
+                <div className="grid grid-cols-[100px_1fr_50px_60px] border-b border-cyan-500/30">
+                  <div className="text-cyan-400 p-2 text-[11px] font-bold border-r border-cyan-500/30">CÓDIGO</div>
+                  <div className="text-cyan-400 p-2 text-[10px] font-medium border-r border-cyan-500/30">Descrição</div>
                 <div className="text-cyan-400 p-2 text-[11px] font-bold text-right border-r border-cyan-500/30">Qtd</div>
-                <div className="text-cyan-400 p-2 text-[11px] font-bold text-right border-r border-cyan-500/30">R$ Unit</div>
-                <div className="text-cyan-400 p-2 text-[11px] font-bold text-right border-r border-cyan-500/30">Total</div>
-                <div className="text-cyan-400 p-2 text-[11px] font-bold text-center">AÇÕES</div>
+                  <div className="text-cyan-400 p-2 text-[11px] font-bold text-right">R$</div>
+                </div>
+                
+                {/* Terceira linha - Campos de busca */}
+                <div className="relative grid grid-cols-[100px_1fr_50px_60px] border-b border-cyan-500/50">
+                  <input
+                    type="text"
+                    value={searchCodigo}
+                    onChange={(e) => {
+                      setSearchCodigo(e.target.value);
+                      if (e.target.value) {
+                        setShowDropdown(true);
+                      } else {
+                        setShowDropdown(false);
+                      }
+                    }}
+                    onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
+                    placeholder="Código..."
+                    className="bg-gray-800 text-white text-[11px] p-2 border-r border-cyan-500/30 focus:outline-none focus:bg-gray-700 transition-colors"
+                  />
+                  <input
+                    type="text"
+                    value={searchItem}
+                    onChange={(e) => {
+                      setSearchItem(e.target.value);
+                      if (e.target.value) {
+                        setShowDropdown(true);
+                      } else {
+                        setShowDropdown(false);
+                      }
+                    }}
+                    onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
+                    placeholder="Nome do produto..."
+                    className="bg-gray-800 text-white text-[11px] p-2 border-r border-cyan-500/30 focus:outline-none focus:bg-gray-700 transition-colors"
+                  />
+                  <div className="border-r border-cyan-500/30"></div>
+                  <div></div>
+                  {showDropdown && produtosFiltrados.length > 0 && (searchCodigo || searchItem) && (
+                    <div className="absolute top-full left-0 right-0 bg-gray-900 border-2 border-cyan-500/50 rounded-b shadow-2xl max-h-60 overflow-y-auto z-50">
+                      {produtosFiltrados.map((item) => {
+                        let tipoBadge = '';
+                        let tipoCor = '';
+                        const tipoLower = (item.tipo || '').toLowerCase();
+                        
+                        if (tipoLower === 'insumo') {
+                          tipoBadge = 'INSUMO';
+                          tipoCor = 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
+                        } else if (tipoLower === 'fabricação') {
+                          tipoBadge = 'FABRICAÇÃO';
+                          tipoCor = 'bg-blue-500/20 text-blue-400 border-blue-500/30';
+                        } else if (tipoLower === 'beneficiamento') {
+                          tipoBadge = 'BENEFICIAMENTO';
+                          tipoCor = 'bg-green-500/20 text-green-400 border-green-500/30';
+                        } else {
+                          tipoBadge = 'PRODUTO';
+                          tipoCor = 'bg-blue-500/20 text-blue-400 border-blue-500/30';
+                        }
+                        
+                        return (
+                          <div
+                            key={item.id}
+                            onClick={() => handleAddProduto(item)}
+                            className="px-3 py-2.5 hover:bg-gray-800 cursor-pointer border-b border-gray-800 last:border-b-0 transition-all"
+                          >
+                            <div className="flex items-center gap-3">
+                              {/* Código */}
+                              <div className="flex-shrink-0 min-w-[60px]">
+                                <div className="text-cyan-400 font-bold text-[11px] font-mono">{item.codigo}</div>
+                              </div>
+                              
+                              {/* Nome e Tipo */}
+                              <div className="flex-1 min-w-0">
+                                <div className="text-white font-semibold text-[11px] mb-1 truncate">{item.descricao}</div>
+                                <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold border ${tipoCor}`}>
+                                  {tipoBadge}
+                                </span>
+                              </div>
+                              
+                              {/* Preço */}
+                              <div className="flex-shrink-0">
+                                <div className="text-green-400 font-bold text-[11px]">
+                                  R$ {item.custoUnitario && !isNaN(parseFloat(item.custoUnitario)) ? parseFloat(item.custoUnitario).toFixed(2) : '0.00'}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Container com Scroll para Produtos */}
@@ -464,11 +532,11 @@ export default function FichaTecnica() {
                 {produtos.map((produto, index) => {
                   const valorTotal = (produto.qtd || 0) * (produto.valor || 0);
                   return (
-                  <div key={index} className="grid grid-cols-[60px_1fr_50px_60px_70px_50px] border-b border-cyan-500/20 bg-gradient-to-r from-gray-900/50 to-black hover:from-gray-800/50 transition-all">
-                    <div className="text-gray-400 p-2 text-[11px] bg-transparent border-r border-cyan-500/20">
+                  <div key={index} className="grid grid-cols-[100px_1fr_50px_60px] border-b border-cyan-500/20 bg-gradient-to-r from-gray-900/50 to-black hover:from-gray-800/50 transition-all">
+                    <div className="text-gray-400 p-2 text-[10px] font-mono bg-transparent border-r border-cyan-500/20 flex items-center">
                       {produto.codigo}
                     </div>
-                    <div className={`p-2 text-[11px] font-bold bg-transparent border-r border-cyan-500/20 ${
+                    <div className={`p-2 text-[11px] font-bold bg-transparent border-r border-cyan-500/20 flex items-center ${
                         produto.tipo === 'insumo' ? 'text-yellow-400' :
                         produto.tipo === 'fabricacao' ? 'text-cyan-400' : 'text-green-400'
                       }`}>
@@ -482,39 +550,16 @@ export default function FichaTecnica() {
                       onChange={(e) => handleProdutoChange(index, 'qtd', parseInt(e.target.value) || 1)}
                       className="text-white p-2 text-[11px] text-right bg-transparent border-r border-cyan-500/20 outline-none focus:bg-gray-800/50 transition-colors w-full"
                     />
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={produto.valor}
-                      onChange={(e) => handleProdutoChange(index, 'valor', parseFloat(e.target.value) || 0)}
-                      className="text-gray-300 p-2 text-[11px] text-right bg-transparent border-r border-cyan-500/20 outline-none focus:bg-gray-800/50 transition-colors w-full"
-                    />
-                    <div className="text-green-400 p-2 text-[11px] text-right bg-transparent border-r border-cyan-500/20 font-bold">
+                    <div className="text-green-400 p-2 text-[11px] text-right bg-transparent font-bold flex items-center justify-end">
                       {valorTotal.toFixed(2)}
-                    </div>
-                    <div className="flex items-center justify-center gap-1 p-1">
-                      <button
-                        onClick={() => {
-                          const novosProdutos = produtos.filter((_, i) => i !== index);
-                          setProdutos(novosProdutos);
-                        }}
-                        className="text-red-400 hover:text-red-300 hover:bg-red-500/20 p-1 rounded transition-colors"
-                        title="Apagar"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
                     </div>
                   </div>
                   );
                 })}
 
                 {/* Linhas vazias */}
-                {[...Array(7)].map((_, i) => (
-                  <div key={`empty-${i}`} className="grid grid-cols-[60px_1fr_50px_60px_70px_50px] border-b border-cyan-500/10 bg-black">
-                    <div className="p-2 text-[11px] border-r border-cyan-500/10">&nbsp;</div>
-                    <div className="p-2 text-[11px] border-r border-cyan-500/10">&nbsp;</div>
+                {[...Array(7 - produtos.length)].map((_, i) => (
+                  <div key={`empty-${i}`} className="grid grid-cols-[100px_1fr_50px_60px] border-b border-cyan-500/10 bg-black">
                     <div className="p-2 text-[11px] border-r border-cyan-500/10">&nbsp;</div>
                     <div className="p-2 text-[11px] border-r border-cyan-500/10">&nbsp;</div>
                     <div className="p-2 text-[11px] border-r border-cyan-500/10">&nbsp;</div>
@@ -525,15 +570,15 @@ export default function FichaTecnica() {
               {/* Fim do Container com Scroll */}
 
               {/* Seção EMBALAGEM */}
-              <div className="grid grid-cols-[60px_1fr_60px_60px_60px] bg-gradient-to-r from-yellow-900/50 to-yellow-700/50 border-y border-yellow-500/50">
-                <div className="col-span-5 text-yellow-200 p-2 text-center font-bold text-xs tracking-wider">
+              <div className="grid grid-cols-[100px_1fr_50px_60px] bg-gradient-to-r from-yellow-900/50 to-yellow-700/50 border-y border-yellow-500/50">
+                <div className="col-span-4 text-yellow-200 p-2 text-center font-bold text-xs tracking-wider">
                   EMBALAGEM
                 </div>
               </div>
 
               {/* Produto de Embalagem */}
               {embalagem.map((item, index) => (
-                <div key={index} className="grid grid-cols-[60px_1fr_60px_60px_60px] border-b border-blue-500 bg-[#0A1929]">
+                <div key={index} className="grid grid-cols-[100px_1fr_50px_60px] border-b border-blue-500 bg-[#0A1929]">
                   <div className="text-gray-400 p-2 text-[10px] border-r border-blue-500">
                     {item.codigo}
                   </div>
@@ -547,21 +592,15 @@ export default function FichaTecnica() {
                     onChange={(e) => handleEmbalagemChange(index, 'qtd', e.target.value)}
                     className="text-white p-2 text-[10px] text-right bg-transparent border-r border-blue-500 outline-none focus:bg-gray-800/50 transition-colors"
                   />
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={item.valor}
-                    onChange={(e) => handleEmbalagemChange(index, 'valor', e.target.value)}
-                    className="text-gray-300 p-2 text-[10px] text-right bg-transparent border-r border-blue-500 outline-none focus:bg-gray-800/50 transition-colors"
-                  />
-                  <div className="p-2 text-[10px]">&nbsp;</div>
+                  <div className="text-gray-300 p-2 text-[10px] text-right">
+                    {(item.qtd * item.valor).toFixed(2)}
+                  </div>
                 </div>
               ))}
 
               {/* Linhas vazias embalagem */}
               {[...Array(3)].map((_, i) => (
-                <div key={`empty-emb-${i}`} className="grid grid-cols-[60px_1fr_60px_60px_60px] border-b border-blue-500 bg-[#0A1929]">
-                  <div className="p-2 text-[10px] border-r border-blue-500">&nbsp;</div>
+                <div key={`empty-emb-${i}`} className="grid grid-cols-[100px_1fr_50px_60px] border-b border-blue-500 bg-[#0A1929]">
                   <div className="p-2 text-[10px] border-r border-blue-500">&nbsp;</div>
                   <div className="p-2 text-[10px] border-r border-blue-500">&nbsp;</div>
                   <div className="p-2 text-[10px] border-r border-blue-500">&nbsp;</div>
@@ -570,30 +609,27 @@ export default function FichaTecnica() {
               ))}
 
               {/* Custo da Matéria-Prima */}
-              <div className="grid grid-cols-[60px_1fr_60px_60px_60px] border-b border-blue-500 bg-gray-700">
+              <div className="grid grid-cols-[100px_1fr_50px_60px] border-b border-blue-500 bg-gray-700">
                 <div className="text-yellow-400 p-2 text-[10px] font-bold border-r border-blue-500 col-span-2">Custo da Matéria-Prima</div>
                 <div className="text-white p-2 text-[10px] text-right border-r border-blue-500">{calcularTotalProdutos().toFixed(2)}</div>
-                <div className="text-yellow-400 p-2 text-[10px] text-right border-r border-blue-500">{(calcularTotalProdutos() + calcularTotalEmbalagem()).toFixed(2)}</div>
-                <div className="p-2 text-[10px]">&nbsp;</div>
+                <div className="text-yellow-400 p-2 text-[10px] text-right">{(calcularTotalProdutos() + calcularTotalEmbalagem()).toFixed(2)}</div>
               </div>
 
               {/* Linhas KG e UND */}
-              <div className="grid grid-cols-[60px_1fr_60px_60px_60px] border-b border-blue-500 bg-gray-700">
+              <div className="grid grid-cols-[100px_1fr_50px_60px] border-b border-blue-500 bg-gray-700">
                 <div className="text-gray-400 p-2 text-[10px] border-r border-blue-500">KG</div>
                 <div className="text-cyan-400 p-2 text-[10px] font-bold border-r border-blue-500">
                   {nomeProdutoPrincipal}
                 </div>
                 <div className="text-white p-2 text-[10px] text-right border-r border-blue-500">0,00</div>
-                <div className="text-gray-300 p-2 text-[10px] text-right border-r border-blue-500">0,00</div>
-                <div className="p-2 text-[10px]">&nbsp;</div>
+                <div className="text-gray-300 p-2 text-[10px] text-right">0,00</div>
               </div>
 
-              <div className="grid grid-cols-[60px_1fr_60px_60px_60px] border-b border-blue-500 bg-gray-700">
+              <div className="grid grid-cols-[100px_1fr_50px_60px] border-b border-blue-500 bg-gray-700">
                 <div className="text-gray-400 p-2 text-[10px] border-r border-blue-500">UND</div>
                 <div className="p-2 text-[10px] border-r border-blue-500"></div>
                 <div className="text-white p-2 text-[10px] text-right border-r border-blue-500">0,00</div>
-                <div className="text-gray-300 p-2 text-[10px] text-right border-r border-blue-500">0,00</div>
-                <div className="p-2 text-[10px]">&nbsp;</div>
+                <div className="text-gray-300 p-2 text-[10px] text-right">0,00</div>
               </div>
 
               {/* Seção de Custos */}
@@ -663,20 +699,17 @@ export default function FichaTecnica() {
             </div>
           </div>
 
-          {/* Coluna Direita - Cards de Precificação 3 COLUNAS */}
+          {/* Coluna Direita - 3 COLUNAS VERTICAIS COMPLETAS */}
           <div className="flex-1">
-            {/* Primeira Linha - 3 Cards Superiores */}
-            <div className="grid grid-cols-3 gap-2 mb-2">
+            <div className="grid grid-cols-3 gap-2">
               {[
                 { titulo: 'CARDÁPIO', dados: cardapio },
                 { titulo: 'PROMOCIONAL', dados: promocional },
                 { titulo: 'PREÇO - C', dados: precoC }
               ].map((card, index) => (
-                <div key={index} className="bg-gradient-to-b from-gray-800 to-gray-900 border-2 border-yellow-600 rounded overflow-hidden">
-                  <div className="bg-gradient-to-r from-yellow-600 to-yellow-500 text-black p-2 text-center font-bold text-[10px] tracking-wider uppercase">
-                    {card.titulo}
-                  </div>
-                  
+                <div key={index} className="flex flex-col gap-2">
+                  {/* Card Superior com Dados */}
+                  <div className="bg-gradient-to-b from-gray-800 to-gray-900 border-2 border-yellow-600 rounded overflow-hidden">
                   <div className="bg-gradient-to-b from-gray-800 to-gray-900 p-2.5">
                     <table className="w-full text-[9px]">
                       <tbody>
@@ -698,40 +731,17 @@ export default function FichaTecnica() {
                       </tbody>
                     </table>
                   </div>
-                </div>
-              ))}
             </div>
 
-            {/* Segunda Linha - 3 Áreas de Separação */}
-            <div className="grid grid-cols-3 gap-2 mb-2">
-              {[
-                { titulo: 'CARDÁPIO' },
-                { titulo: 'PROMOCIONAL' },
-                { titulo: 'PREÇO - C' }
-              ].map((card, index) => (
-                <div key={index} className="bg-black border-2 border-yellow-600 rounded overflow-hidden">
+                  {/* Área de Separação */}
+                  <div className="bg-black border-2 border-yellow-600 rounded overflow-hidden">
                   <div className="bg-gradient-to-b from-blue-900/80 to-blue-950/90 h-32 flex items-center justify-center">
                     <div className="text-gray-600 text-[10px]"></div>
                   </div>
-                  <div className="bg-gradient-to-r from-yellow-600 to-yellow-500 text-black p-2 text-center font-bold text-[10px] tracking-wider uppercase">
-                    {card.titulo}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Terceira Linha - 3 Cards APLICADO */}
-            <div className="grid grid-cols-3 gap-2 mb-2">
-              {[
-                { titulo: 'CARDÁPIO', dados: cardapio },
-                { titulo: 'PROMOCIONAL', dados: promocional },
-                { titulo: 'PREÇO - C', dados: precoC }
-              ].map((card, index) => (
-                <div key={index} className="bg-gradient-to-b from-gray-800 to-gray-900 border-2 border-yellow-600 rounded overflow-hidden flex flex-col">
-                  <div className="bg-gradient-to-r from-yellow-600 to-yellow-500 text-black p-2 text-center font-bold text-[10px] tracking-wider uppercase">
-                    {card.titulo}
                   </div>
                   
+                  {/* Card com APLICADO */}
+                  <div className="bg-gradient-to-b from-gray-800 to-gray-900 border-2 border-yellow-600 rounded overflow-hidden flex flex-col">
                   <div className="flex-1 bg-gradient-to-b from-gray-800 to-gray-900 p-2.5">
                     <table className="w-full text-[9px]">
                       <tbody>
@@ -768,18 +778,10 @@ export default function FichaTecnica() {
                       </div>
                     )}
                   </div>
-                </div>
-              ))}
             </div>
 
-            {/* Quarta Linha - 3 Cards de Resumo - Números à Direita */}
-            <div className="grid grid-cols-3 gap-0.5">
-              {[
-                { dados: cardapio, titulo: 'FATURAMENTO' },
-                { dados: promocional, titulo: 'FATURAMENTO' },
-                { dados: precoC, titulo: 'FATURAMENTO' }
-              ].map((card, index) => (
-                <div key={index} className="flex flex-col gap-px">
+                  {/* Cards de Resumo */}
+                  <div className="flex flex-col gap-px">
                   {/* Bloco FATURAMENTO */}
                   <div className="bg-gradient-to-r from-gray-800 to-gray-900 border border-gray-700 rounded px-2 py-1 h-7 flex items-center">
                     {index === 0 && (
@@ -799,6 +801,7 @@ export default function FichaTecnica() {
                   {/* Bloco Percentual */}
                   <div className="bg-black border border-gray-700 rounded px-2 py-1 h-6 flex items-center justify-end">
                     <div className="text-[11px] text-white/70 leading-tight font-bold">0.0%</div>
+                    </div>
                   </div>
                 </div>
               ))}

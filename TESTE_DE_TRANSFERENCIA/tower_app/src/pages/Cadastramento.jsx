@@ -116,28 +116,6 @@ export default function Cadastramento() {
             </div>
           </div>
 
-          {/* Categorias Cadastradas */}
-          {categories.length > 0 && (
-            <div className="bg-[#0A1929] p-6 rounded-lg border border-[#1E3A5F] mb-6">
-              <h3 className="text-lg font-semibold text-white mb-4">Categorias Cadastradas</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {categories.map(cat => (
-                  <div key={cat.id} className="bg-[#1A2942] p-4 rounded-lg border border-[#1E3A5F]">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="text-white font-semibold">{cat.nome}</h4>
-                      <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded">
-                        {items.filter(item => item.categoriaId === cat.id).length} itens
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-400">
-                      Códigos: {cat.startCode} - {cat.endCode}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
           {/* Table */}
           <div className="bg-[#0A1929] rounded-lg border border-[#1E3A5F] overflow-hidden">
             <div className="overflow-x-auto">

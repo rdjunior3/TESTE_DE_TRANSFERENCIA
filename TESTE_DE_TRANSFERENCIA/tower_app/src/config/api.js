@@ -23,8 +23,6 @@ export async function fetchAPI(url, options = {}) {
   try {
     const response = await fetch(url, {
       ...options,
-      mode: 'cors',
-      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
         ...options.headers,

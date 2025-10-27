@@ -39,9 +39,10 @@ function Login() {
         const userSession = {
           ...response.user,
           password: formData.password, // Salvar senha para alteração posterior
+          plan: response.user.role === 'admin' ? 'premium' : 'free' // Admin tem acesso premium
         };
         
-        localStorage.setItem('token', 'user-token-' + response.user.id);
+        localStorage.setItem('token', response.token);
         localStorage.setItem('user', JSON.stringify(userSession));
         localStorage.setItem('userData', JSON.stringify(response.user));
         
