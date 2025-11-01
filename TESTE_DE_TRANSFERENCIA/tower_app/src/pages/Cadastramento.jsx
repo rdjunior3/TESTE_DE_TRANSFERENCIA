@@ -164,10 +164,12 @@ export default function Cadastramento() {
                         <td className="px-4 py-3 text-sm text-white">{item.codigo}</td>
                         <td className="px-4 py-3 text-sm text-white">{item.descricao}</td>
                         <td className="px-4 py-3 text-sm">
-                          <span className={`px-2 py-1 rounded text-xs font-medium ${
-                            item.tipo === 'Produto' 
-                              ? 'bg-yellow-500/20 text-yellow-400' 
-                              : 'bg-green-500/20 text-green-400'
+                          <span className={`px-2 py-1 rounded text-xs font-medium border ${
+                            item.tipo === 'Produto' ? 'bg-white/20 text-white border-white/30' :
+                            item.tipo === 'Insumo' ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' :
+                            item.tipo === 'Fabricação' ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30' :
+                            item.tipo === 'Beneficiamento' ? 'bg-green-500/20 text-green-400 border-green-500/30' :
+                            'bg-white/20 text-white border-white/30'
                           }`}>
                             {item.tipo}
                           </span>
